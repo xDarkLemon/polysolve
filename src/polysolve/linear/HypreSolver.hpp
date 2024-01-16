@@ -58,7 +58,8 @@ namespace polysolve::linear
         int max_iter_ = 1000;
         int pre_max_iter_ = 1;
         double conv_tol_ = 1e-10;
-
+        bool is_nullspace_=false; //  Cannot work since the trilinos nullspace vector does not work
+        bool is_test=true;
         HYPRE_Int num_iterations;
         HYPRE_Complex final_res_norm;
 
