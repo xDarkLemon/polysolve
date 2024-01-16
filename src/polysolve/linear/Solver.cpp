@@ -36,110 +36,140 @@
 #ifdef POLYSOLVE_WITH_AMGCL
 #include "AMGCL.hpp"
 #endif
+#ifdef POLYSOLVE_WITH_TRILINOS
+#include <polysolve/LinearSolverTrilinos.hpp>
+#endif
 #ifdef POLYSOLVE_WITH_CUSOLVER
 #include "CuSolverDN.cuh"
 #endif
 #include <unsupported/Eigen/IterativeSolvers>
 
 ////////////////////////////////////////////////////////////////////////////////
+Eigen::MatrixXd test_vertices;
+Eigen::MatrixXd init_vertices;
+std::vector<int> test_boundary_nodes;
+Eigen::MatrixXd remove_boundary_vertices(const Eigen::MatrixXd &vertices, const std::vector<int> &boundary_nodes)
+{
+    // Remove boundary vertices
+    if (boundary_nodes.empty())
+    {
+        return vertices;
+    }
+    else
+    {
+        std::vector<int> order_nodes = boundary_nodes;
+        std::sort(order_nodes.begin(), order_nodes.end());
+        Eigen::MatrixXd out_vertices;
+        std::vector<int> keep;
+        for (int i = 0; i < vertices.rows(); i++)
+        {
+            if (!std::binary_search(order_nodes.begin(), order_nodes.end(),i))
+            {
+                keep.push_back(i);
+            }
+        }
+        out_vertices = vertices(keep, Eigen::all);
+        return out_vertices;
+    }
+}
 
 namespace polysolve::linear
 {
     using polysolve::StiffnessMatrix;
 
-    void Solver::apply_default_solver(json &rules, const std::string &prefix)
-    {
-        // set default wrt availability
-        for (int i = 0; i < rules.size(); i++)
-        {
-            if (rules[i]["pointer"] == prefix + "/solver")
-            {
-                rules[i]["default"] = default_solver();
-                rules[i]["options"] = available_solvers();
-            }
-            else if (rules[i]["pointer"] == prefix + "/precond")
-            {
-                rules[i]["default"] = default_precond();
-                rules[i]["options"] = available_preconds();
-            }
-        }
-    }
+    // void Solver::apply_default_solver(json &rules, const std::string &prefix)
+    // {
+    //     // set default wrt availability
+    //     for (int i = 0; i < rules.size(); i++)
+    //     {
+    //         if (rules[i]["pointer"] == prefix + "/solver")
+    //         {
+    //             rules[i]["default"] = default_solver();
+    //             rules[i]["options"] = available_solvers();
+    //         }
+    //         else if (rules[i]["pointer"] == prefix + "/precond")
+    //         {
+    //             rules[i]["default"] = default_precond();
+    //             rules[i]["options"] = available_preconds();
+    //         }
+    //     }
+    // }
 
-    void Solver::select_valid_solver(json &params, spdlog::logger &logger)
-    {
-        // if solver is an array, pick the first available
-        const auto lin_solver_ptr = "/solver"_json_pointer;
-        if (params.contains(lin_solver_ptr) && params[lin_solver_ptr].is_array())
-        {
-            const std::vector<std::string> solvers = params[lin_solver_ptr];
-            const std::vector<std::string> available_solvers = Solver::available_solvers();
-            std::string accepted_solver = "";
-            for (const std::string &solver : solvers)
-            {
-                if (std::find(available_solvers.begin(), available_solvers.end(), solver) != available_solvers.end())
-                {
-                    accepted_solver = solver;
-                    break;
-                }
-            }
-            if (!accepted_solver.empty())
-                logger.info("Solver {} is the highest priority availble solver; using it.", accepted_solver);
-            else
-                logger.warn("No valid solver found in the list of specified solvers!");
-            params[lin_solver_ptr] = accepted_solver;
-        }
+    // void Solver::select_valid_solver(json &params, spdlog::logger &logger)
+    // {
+    //     // if solver is an array, pick the first available
+    //     const auto lin_solver_ptr = "/solver"_json_pointer;
+    //     if (params.contains(lin_solver_ptr) && params[lin_solver_ptr].is_array())
+    //     {
+    //         const std::vector<std::string> solvers = params[lin_solver_ptr];
+    //         const std::vector<std::string> available_solvers = Solver::available_solvers();
+    //         std::string accepted_solver = "";
+    //         for (const std::string &solver : solvers)
+    //         {
+    //             if (std::find(available_solvers.begin(), available_solvers.end(), solver) != available_solvers.end())
+    //             {
+    //                 accepted_solver = solver;
+    //                 break;
+    //             }
+    //         }
+    //         if (!accepted_solver.empty())
+    //             logger.info("Solver {} is the highest priority availble solver; using it.", accepted_solver);
+    //         else
+    //             logger.warn("No valid solver found in the list of specified solvers!");
+    //         params[lin_solver_ptr] = accepted_solver;
+    //     }
 
-        // Fallback to default linear solver if the specified solver is invalid
-        // NOTE: I do not know why .value() causes a segfault only on Windows
-        // const bool fallback_solver = params.value("/enable_overwrite_solver"_json_pointer, false);
-        const bool fallback_solver =
-            params.contains("/enable_overwrite_solver"_json_pointer)
-                ? params.at("/enable_overwrite_solver"_json_pointer).get<bool>()
-                : false;
-        if (fallback_solver)
-        {
-            const std::vector<std::string> ss = Solver::available_solvers();
-            std::string s_json = "null";
-            if (!params.contains(lin_solver_ptr) || !params[lin_solver_ptr].is_string()
-                || std::find(ss.begin(), ss.end(), s_json = params[lin_solver_ptr].get<std::string>()) == ss.end())
-            {
-                logger.warn("Solver {} is invalid, falling back to {}", s_json, Solver::default_solver());
-                params[lin_solver_ptr] = Solver::default_solver();
-            }
-        }
-    }
+    //     // Fallback to default linear solver if the specified solver is invalid
+    //     // NOTE: I do not know why .value() causes a segfault only on Windows
+    //     // const bool fallback_solver = params.value("/enable_overwrite_solver"_json_pointer, false);
+    //     const bool fallback_solver =
+    //         params.contains("/enable_overwrite_solver"_json_pointer)
+    //             ? params.at("/enable_overwrite_solver"_json_pointer).get<bool>()
+    //             : false;
+    //     if (fallback_solver)
+    //     {
+    //         const std::vector<std::string> ss = Solver::available_solvers();
+    //         std::string s_json = "null";
+    //         if (!params.contains(lin_solver_ptr) || !params[lin_solver_ptr].is_string()
+    //             || std::find(ss.begin(), ss.end(), s_json = params[lin_solver_ptr].get<std::string>()) == ss.end())
+    //         {
+    //             logger.warn("Solver {} is invalid, falling back to {}", s_json, Solver::default_solver());
+    //             params[lin_solver_ptr] = Solver::default_solver();
+    //         }
+    //     }
+    // }
 
-    std::unique_ptr<Solver> Solver::create(const json &params_in, spdlog::logger &logger, const bool strict_validation)
-    {
-        json params = params_in; // mutable copy
+    // std::unique_ptr<Solver> Solver::create(const json &params_in, spdlog::logger &logger, const bool strict_validation)
+    // {
+    //     json params = params_in; // mutable copy
 
-        json rules;
-        jse::JSE jse;
+    //     json rules;
+    //     jse::JSE jse;
 
-        jse.strict = strict_validation;
-        const std::string input_spec = POLYSOLVE_LINEAR_SPEC;
-        std::ifstream file(input_spec);
+    //     jse.strict = strict_validation;
+    //     const std::string input_spec = POLYSOLVE_LINEAR_SPEC;
+    //     std::ifstream file(input_spec);
 
-        if (file.is_open())
-            file >> rules;
-        else
-            log_and_throw_error(logger, "unable to open {} rules", input_spec);
+    //     if (file.is_open())
+    //         file >> rules;
+    //     else
+    //         log_and_throw_error(logger, "unable to open {} rules", input_spec);
 
-        apply_default_solver(rules);
-        select_valid_solver(params, logger);
+    //     apply_default_solver(rules);
+    //     select_valid_solver(params, logger);
 
-        const bool valid_input = jse.verify_json(params, rules);
+    //     const bool valid_input = jse.verify_json(params, rules);
 
-        if (!valid_input)
-            log_and_throw_error(logger, "invalid input json:\n{}", jse.log2str());
+    //     if (!valid_input)
+    //         log_and_throw_error(logger, "invalid input json:\n{}", jse.log2str());
 
-        params = jse.inject_defaults(params, rules);
+    //     params = jse.inject_defaults(params, rules);
 
-        auto res = create(params["solver"], params["precond"]);
-        res->set_parameters(params);
+    //     auto res = create(params["solver"], params["precond"]);
+    //     res->set_parameters(params);
 
-        return res;
-    }
+    //     return res;
+    // }
 
     ////////////////////////////////////////////////////////////////////////////////
 
@@ -345,6 +375,10 @@ namespace polysolve::linear
         {
             RETURN_DIRECT_SOLVER_PTR(PardisoLDLT, "Eigen::PardisoLDLT");
         }
+        else if (solver == "Eigen::PardisoLLT")
+        {
+            RETURN_DIRECT_SOLVER_PTR(PardisoLLT, "Eigen::PardisoLLT");
+        }
         else if (solver == "Eigen::PardisoLU")
         {
             RETURN_DIRECT_SOLVER_PTR(PardisoLU, "Eigen::PardisoLU");
@@ -376,6 +410,12 @@ namespace polysolve::linear
         else if (solver == "AMGCL")
         {
             return std::make_unique<AMGCL>();
+#endif
+#ifdef POLYSOLVE_WITH_TRILINOS
+        }
+        else if (solver == "Trilinos")
+        {
+            return std::make_unique<LinearSolverTrilinos>();
 #endif
 #if EIGEN_VERSION_AT_LEAST(3, 3, 0)
             // Available only with Eigen 3.3.0 and newer
@@ -485,6 +525,7 @@ namespace polysolve::linear
             "Eigen::PardisoLLT",
             "Eigen::PardisoLDLT",
             "Eigen::PardisoLU",
+            "Eigen::PardisoLLT",
 #endif
 #ifdef POLYSOLVE_WITH_PARDISO
             "Pardiso",
@@ -498,6 +539,9 @@ namespace polysolve::linear
 #endif
 #ifdef POLYSOLVE_WITH_AMGCL
             "AMGCL",
+#endif
+#ifdef POLYSOLVE_WITH_TRILINOS
+            "Trilinos",
 #endif
 #if EIGEN_VERSION_AT_LEAST(3, 3, 0)
 #ifndef POLYSOLVE_LARGE_INDEX
