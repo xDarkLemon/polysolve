@@ -7,9 +7,47 @@
 #include <boost/property_tree/json_parser.hpp>
 ////////////////////////////////////////////////////////////////////////////////
 
+std::string indent(int level)
+    {
+        std::string s;
+        for (int i = 0; i<level; i++) s += "  ";
+        return s;
+    }
+
+void printTree(boost::property_tree::ptree &pt, int level)
+{
+    if (pt.empty())
+    {
+        std::cout << "\"" << pt.data() << "\"";
+    }
+
+    else
+    {
+        if (level) std::cout << std::endl;
+
+        std::cout << indent(level) << "{" << std::endl;
+
+        for (boost::property_tree::ptree::iterator pos = pt.begin(); pos != pt.end();)
+        {
+            std::cout << indent(level + 1) << "\"" << pos->first << "\": ";
+
+            printTree(pos->second, level + 1);
+            ++pos;
+            if (pos != pt.end())
+            {
+                std::cout << ",";
+            }
+            std::cout << std::endl;
+        }
+
+        std::cout << indent(level) << " }";
+    }
+    std::cout << std::endl;
+    return;
+}
+
 namespace polysolve::linear
 {
-
     namespace
     {
         /* https://stackoverflow.com/questions/15904896/range-based-for-loop-on-a-dynamic-array */
@@ -34,28 +72,28 @@ namespace polysolve::linear
             json params = R"({
                 "precond": {
                     "relax": {
-                        "degree": 16,
+                        "degree": 5,
                         "type": "chebyshev",
                         "power_iters": 100,
-                        "higher": 2,
-                        "lower": 0.008333333333,
+                        "higher": 1,
+                        "lower": 0.03,
                         "scale": true
                     },
                     "class": "amg",
-                    "max_levels": 6,
-                    "direct_coarse": false,
-                    "ncycle": 2,
+                    "max_levels": 25,
+                    "direct_coarse": true,
+                    "ncycle": 1,
                     "coarsening": {
                         "type": "smoothed_aggregation",
-                        "estimate_spectral_radius": true,
-                        "relax": 1,
+                        "estimate_spectral_radius": false,
+                        "relax": 1.0,
                         "aggr": {
-                            "eps_strong": 0
+                            "eps_strong": 0.08
                         }
                     }
                 },
                 "solver": {
-                    "tol": 1e-10,
+                    "tol": 1e-08,
                     "maxiter": 1000,
                     "type": "cg"
                 }
@@ -69,25 +107,25 @@ namespace polysolve::linear
             if (params.contains("AMGCL"))
             {
                 // Patch the stored params with input ones
-                if (params["AMGCL"].contains("precond"))
-                    out["precond"].merge_patch(params["AMGCL"]["precond"]);
-                if (params["AMGCL"].contains("solver"))
-                    out["solver"].merge_patch(params["AMGCL"]["solver"]);
+                // if (params["AMGCL"].contains("precond"))
+                //     out["precond"].merge_patch(params["AMGCL"]["precond"]);
+                // if (params["AMGCL"].contains("solver"))
+                //     out["solver"].merge_patch(params["AMGCL"]["solver"]);
 
-                if (out["precond"]["class"] == "schur_pressure_correction")
-                {
-                    // Initialize the u and p solvers with a tolerance that is comparable to the main solver's
-                    if (!out["precond"].contains("usolver"))
-                    {
-                        out["precond"]["usolver"] = R"({"solver": {"maxiter": 100}})"_json;
-                        out["precond"]["usolver"]["solver"]["tol"] = 10 * out["solver"]["tol"].get<double>();
-                    }
-                    if (!out["precond"].contains("usolver"))
-                    {
-                        out["precond"]["psolver"] = R"({"solver": {"maxiter": 100}})"_json;
-                        out["precond"]["psolver"]["solver"]["tol"] = 10 * out["solver"]["tol"].get<double>();
-                    }
-                }
+                // if (out["precond"]["class"] == "schur_pressure_correction")
+                // {
+                //     // Initialize the u and p solvers with a tolerance that is comparable to the main solver's
+                //     if (!out["precond"].contains("usolver"))
+                //     {
+                //         out["precond"]["usolver"] = R"({"solver": {"maxiter": 100}})"_json;
+                //         out["precond"]["usolver"]["solver"]["tol"] = 10 * out["solver"]["tol"].get<double>();
+                //     }
+                //     if (!out["precond"].contains("usolver"))
+                //     {
+                //         out["precond"]["psolver"] = R"({"solver": {"maxiter": 100}})"_json;
+                //         out["precond"]["psolver"]["solver"]["tol"] = 10 * out["solver"]["tol"].get<double>();
+                //     }
+                // }
             }
         }
     } // namespace
@@ -266,6 +304,29 @@ namespace polysolve::linear
         ss_params << params_;
         boost::property_tree::ptree pt_params;
         boost::property_tree::read_json(ss_params, pt_params);
+
+        //  Set null space
+        if (is_nullspace_)
+        {
+            std::vector<double> coo;
+            reduced_vertices=remove_boundary_vertices(test_vertices,test_boundary_nodes);
+            coo.resize(BLOCK_SIZE*reduced_vertices.rows());
+            for (size_t i = 0; i < reduced_vertices.rows(); i++)
+            {
+                for (size_t j = 0; j < BLOCK_SIZE; j++)
+                {
+                    coo[j+i*BLOCK_SIZE]=reduced_vertices(i,j);
+                }
+                
+            }
+            
+            int nv;
+            nv = amgcl::coarsening::rigid_body_modes(BLOCK_SIZE, coo, null); // TODO: COO requires to change the form of vector<double>
+            pt_params.put("precond.coarsening.nullspace.cols", nv);
+            pt_params.put("precond.coarsening.nullspace.rows", Ain.rows());
+            pt_params.put("precond.coarsening.nullspace.B",    &null[0]);
+            pt_params.put("precond.coarsening.aggr.eps_strong", 0.00);
+        }
 
         auto A = std::tie(numRows, ia, ja, a);
         auto Ab = amgcl::adapter::block_matrix<dmat_type>(A);

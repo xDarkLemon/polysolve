@@ -30,6 +30,10 @@
 #include <amgcl/adapter/eigen.hpp>
 #include <amgcl/adapter/block_matrix.hpp>
 #include <amgcl/profiler.hpp>
+
+#include <amgcl/coarsening/rigid_body_modes.hpp>
+#include <amgcl/coarsening/as_scalar.hpp>
+
 #include <memory>
 #include <type_traits>
 
@@ -88,7 +92,12 @@ namespace polysolve::linear
         std::unique_ptr<Solver> solver_;
         json params_;
         typename Backend::params backend_params_;
+        bool is_nullspace_=true;
         int precond_num_;
+        std::vector<double> null;
+        //Timer, test only
+        amgcl::profiler<> prof;
+        Eigen::MatrixXd reduced_vertices;
 
         // Output info
         size_t iterations_;
@@ -140,6 +149,7 @@ namespace polysolve::linear
 
         // Name of the solver type (for debugging purposes)
         virtual std::string name() const override { return "AMGCL"; }
+        void factorize(const StiffnessMatrix &A, const std::vector<double> &coo);
 
     private:
         using Backend = amgcl::backend::builtin<double>;
