@@ -27,18 +27,18 @@
 #ifdef POLYSOLVE_WITH_MKL
 #include <Eigen/PardisoSupport>
 #endif
-#ifdef POLYSOLVE_WITH_PARDISO
+// #ifdef POLYSOLVE_WITH_PARDISO
 #include "Pardiso.hpp"
-#endif
+// #endif
 #ifdef POLYSOLVE_WITH_HYPRE
 #include "HypreSolver.hpp"
 #endif
 #ifdef POLYSOLVE_WITH_AMGCL
 #include "AMGCL.hpp"
 #endif
-#ifdef POLYSOLVE_WITH_TRILINOS
-#include <polysolve/LinearSolverTrilinos.hpp>
-#endif
+// #ifdef POLYSOLVE_WITH_TRILINOS
+// #include "TrilinosSolver.hpp"
+// #endif
 #ifdef POLYSOLVE_WITH_CUSOLVER
 #include "CuSolverDN.cuh"
 #endif
@@ -383,12 +383,12 @@ namespace polysolve::linear
         {
             RETURN_DIRECT_SOLVER_PTR(PardisoLU, "Eigen::PardisoLU");
 #endif
-#ifdef POLYSOLVE_WITH_PARDISO
+// #ifdef POLYSOLVE_WITH_PARDISO
         }
         else if (solver == "Pardiso")
         {
             return std::make_unique<Pardiso>();
-#endif
+// #endif
 #ifdef POLYSOLVE_WITH_CUSOLVER
         }
         else if (solver == "cuSolverDN")
@@ -411,12 +411,12 @@ namespace polysolve::linear
         {
             return std::make_unique<AMGCL>();
 #endif
-#ifdef POLYSOLVE_WITH_TRILINOS
-        }
-        else if (solver == "Trilinos")
-        {
-            return std::make_unique<LinearSolverTrilinos>();
-#endif
+// #ifdef POLYSOLVE_WITH_TRILINOS
+        // }
+        // else if (solver == "Trilinos")
+        // {
+        //     return std::make_unique<TrilinosSolver>();
+// #endif
 #if EIGEN_VERSION_AT_LEAST(3, 3, 0)
             // Available only with Eigen 3.3.0 and newer
 #ifndef POLYSOLVE_LARGE_INDEX
@@ -527,9 +527,9 @@ namespace polysolve::linear
             "Eigen::PardisoLU",
             "Eigen::PardisoLLT",
 #endif
-#ifdef POLYSOLVE_WITH_PARDISO
+// #ifdef POLYSOLVE_WITH_PARDISO
             "Pardiso",
-#endif
+// #endif
 #ifdef POLYSOLVE_WITH_CUSOLVER
             "cuSolverDN",
             "cuSolverDN_float",
@@ -540,9 +540,9 @@ namespace polysolve::linear
 #ifdef POLYSOLVE_WITH_AMGCL
             "AMGCL",
 #endif
-#ifdef POLYSOLVE_WITH_TRILINOS
-            "Trilinos",
-#endif
+// #ifdef POLYSOLVE_WITH_TRILINOS
+            // "Trilinos",
+// #endif
 #if EIGEN_VERSION_AT_LEAST(3, 3, 0)
 #ifndef POLYSOLVE_LARGE_INDEX
             "Eigen::LeastSquaresConjugateGradient",
@@ -569,15 +569,15 @@ namespace polysolve::linear
     std::string Solver::default_solver()
     {
         // return "Eigen::BiCGSTAB";
-#ifdef POLYSOLVE_WITH_PARDISO
+// #ifdef POLYSOLVE_WITH_PARDISO
         return "Pardiso";
-#else
+// #else
 #ifdef POLYSOLVE_WITH_HYPRE
         return "Hypre";
 #else
         return "Eigen::BiCGSTAB";
 #endif
-#endif
+// #endif
     }
 
     // -----------------------------------------------------------------------------

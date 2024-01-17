@@ -1,4 +1,4 @@
-#ifdef POLYSOLVE_WITH_PARDISO
+// #ifdef POLYSOLVE_WITH_PARDISO
 
 ////////////////////////////////////////////////////////////////////////////////
 #include "Pardiso.hpp"
@@ -435,4 +435,4 @@ namespace polysolve::linear
 
 } // namespace polysolve::linear
 
-#endif
+// #endif

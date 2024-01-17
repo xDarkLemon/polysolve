@@ -1,9 +1,9 @@
 #pragma once
 
-#ifdef POLYSOLVE_WITH_TRILINOS
+// #ifdef POLYSOLVE_WITH_TRILINOS
 
 ////////////////////////////////////////////////////////////////////////////////
-#include <polysolve/LinearSolver.hpp>
+#include "Solver.hpp"
 
 #include <Eigen/Core>
 #include <Eigen/Sparse>
@@ -41,18 +41,18 @@
 // column-major matrix, the solver will actually solve A^T x = b.
 //
 
-namespace polysolve
+namespace polysolve::linear
 {
 
-    class LinearSolverTrilinos : public LinearSolver
+    class TrilinosSolver : public Solver
     {
 
     public:
-        LinearSolverTrilinos();
-        ~LinearSolverTrilinos();
+        TrilinosSolver();
+        ~TrilinosSolver();
 
     private:
-        POLYSOLVE_DELETE_MOVE_COPY(LinearSolverTrilinos)
+        POLYSOLVE_DELETE_MOVE_COPY(TrilinosSolver)
 
     public:
         //////////////////////
@@ -60,13 +60,13 @@ namespace polysolve
         //////////////////////
 
         // Set solver parameters
-        virtual void setParameters(const json &params) override;
+        virtual void set_parameters(const json &params) override;
 
         // Retrieve memory information from Pardiso
-        virtual void getInfo(json &params) const override;
+        virtual void get_info(json &params) const override;
 
         // Analyze sparsity pattern
-        virtual void analyzePattern(const StiffnessMatrix &A, const int precond_num) override { precond_num_ = precond_num; }
+        virtual void analyze_pattern(const StiffnessMatrix &A, const int precond_num) override { precond_num_ = precond_num; }
 
         // Factorize system matrix
         virtual void factorize(const StiffnessMatrix &A) override;
@@ -100,4 +100,4 @@ namespace polysolve
 
 } // namespace polysolve
 
-#endif
+// #endif

@@ -1,13 +1,13 @@
-#ifdef POLYSOLVE_WITH_TRILINOS
+// #ifdef POLYSOLVE_WITH_TRILINOS
 
 ////////////////////////////////////////////////////////////////////////////////
 #include "TrilinosSolver.hpp"
 #include <string>
 #include <vector>
 #include <unsupported/Eigen/SparseExtra>
-////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////s///////////////////////////////////////////////
 
-namespace polysolve
+namespace polysolve::linear
 {
     namespace{
     ////////////////////////////////////////////////////////////////
@@ -98,7 +98,7 @@ namespace polysolve
     // Produce a vector of rigid body modes
 
     }
-    LinearSolverTrilinos::LinearSolverTrilinos()
+    TrilinosSolver::TrilinosSolver()
     {
         precond_num_ = 0;
 #ifdef HAVE_MPI
@@ -120,7 +120,7 @@ namespace polysolve
     }
 
     ////////////////////////////////////////////////////////////////
-    void LinearSolverTrilinos::setParameters(const json &params)
+    void TrilinosSolver::set_parameters(const json &params)
     {
         if (params.contains("Trilinos"))
         {
@@ -147,14 +147,14 @@ namespace polysolve
     }
 
     /////////////////////////////////////////////////
-    void LinearSolverTrilinos::getInfo(json &params) const
+    void TrilinosSolver::get_info(json &params) const
     {
         params["num_iterations"] = iterations_;
         params["final_res_norm"] = residual_error_;
     }
 
     /////////////////////////////////////////////////
-    void LinearSolverTrilinos::factorize(const StiffnessMatrix &Ain)
+    void TrilinosSolver::factorize(const StiffnessMatrix &Ain)
     {
         assert(precond_num_ > 0);
         // Eigen::saveMarket(Ain,"/home/yiwei/matrix_struct/A_nonLinear.mtx");
@@ -220,7 +220,7 @@ namespace polysolve
     }
 
 
-    void LinearSolverTrilinos::solve(const Eigen::Ref<const VectorXd> rhs, Eigen::Ref<VectorXd> result)
+    void TrilinosSolver::solve(const Eigen::Ref<const VectorXd> rhs, Eigen::Ref<VectorXd> result)
     {
         int output=10; //how often to print residual history
         Teuchos::ParameterList MLList;
@@ -337,7 +337,7 @@ namespace polysolve
    
     }
 
-    LinearSolverTrilinos:: ~LinearSolverTrilinos()
+    TrilinosSolver:: ~TrilinosSolver()
     {
         delete A;
         delete rowMap;
@@ -348,4 +348,4 @@ namespace polysolve
     }
 }
 
-#endif
+// #endif

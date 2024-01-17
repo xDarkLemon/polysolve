@@ -52,6 +52,9 @@ cmake_policy(SET CMP0076 NEW) # target_sources() command converts relative paths
 set(CMAKE_POLICY_DEFAULT_CMP0091 NEW) # MSVC runtime library flags are selected by an abstraction.
 set(CMAKE_POLICY_DEFAULT_CMP0135 NEW) # Set the timestamps of all extracted contents to the time of the extraction.
 
+# PATH to Trilinos lib, need to update for installing trilinos in polysolve
+set(CMAKE_PREFIX_PATH "/mnt/hdd1/yibo/yiwei/Trilinos/lib")
+
 ################################################################################
 
 project(PolySolve
@@ -75,11 +78,13 @@ option(POLYSOLVE_WITH_CHOLMOD       "Enable Cholmod library"                    
 option(POLYSOLVE_WITH_UMFPACK       "Enable UmfPack library"                             ON)
 option(POLYSOLVE_WITH_SUPERLU       "Enable SuperLU library"                             ON)
 option(POLYSOLVE_WITH_MKL           "Enable MKL library"  ${POLYSOLVE_NOT_ON_APPLE_SILICON})
-option(POLYSOLVE_WITH_CUSOLVER      "Enable cuSOLVER library"                           OFF)
-option(POLYSOLVE_WITH_PARDISO       "Enable Pardiso library"                            OFF)
+option(POLYSOLVE_WITH_CUSOLVER      "Enable cuSOLVER library"                            ON)
+option(POLYSOLVE_WITH_PARDISO       "Enable Pardiso library"                             ON)
 option(POLYSOLVE_WITH_HYPRE         "Enable hypre"                                       ON)
 option(POLYSOLVE_WITH_AMGCL         "Use AMGCL"                                          ON)
 option(POLYSOLVE_WITH_SPECTRA       "Enable Spectra library"                             ON)
+option(POLYSOLVE_WITH_TRILINOS      "Enable Trilinos"                                    ON)
+option(BUILD_TRILINOS_FROM_SOURCE   "Build trilinos from source"                         ON)  # OFF
 
 # Sanitizer options
 option(POLYSOLVE_SANITIZE_ADDRESS   "Sanitize Address"                                  OFF)
@@ -282,6 +287,34 @@ if(POLYSOLVE_WITH_SPECTRA)
     target_link_libraries(polysolve_linear PUBLIC Spectra::Spectra)
     target_compile_definitions(polysolve_linear PRIVATE -DPOLYSOLVE_WITH_SPECTRA)
 endif()
+
+# Trilinos
+if (POLYSOLVE_WITH_TRILINOS)
+    find_package(Trilinos REQUIRED COMPONENTS ML Epetra)# Only for local build, fix it when publish 
+    MESSAGE("\nFound Trilinos!  Here are the details: ")
+    MESSAGE("   Trilinos_DIR = ${Trilinos_DIR}")
+    MESSAGE("   Trilinos_VERSION = ${Trilinos_VERSION}")
+    MESSAGE("   Trilinos_PACKAGE_LIST = ${Trilinos_PACKAGE_LIST}")
+    MESSAGE("   Trilinos_LIBRARIES = ${Trilinos_LIBRARIES}")
+    MESSAGE("   Trilinos_INCLUDE_DIRS = ${Trilinos_INCLUDE_DIRS}")
+    MESSAGE("   Trilinos_TPL_LIST = ${Trilinos_TPL_LIST}")
+    MESSAGE("   Trilinos_TPL_LIBRARIES = ${Trilinos_TPL_LIBRARIES}")
+    MESSAGE("   Trilinos_BUILD_SHARED_LIBS = ${Trilinos_BUILD_SHARED_LIBS}")
+    MESSAGE("End of Trilinos details\n")   
+    include_directories("/mnt/hdd1/yibo/yiwei/Trilinos/lib/include")
+    link_directories("/mnt/hdd1/yibo/yiwei/Trilinos/lib")
+    target_link_libraries(polysolve PUBLIC ${Trilinos_LIBRARIES})
+    # target_link_libraries(polysolve PUBLIC Trilinos::all_libs)
+    target_include_directories(polysolve PUBLIC ${Trilinos_INCLUDE_DIRS})
+    target_compile_definitions(polysolve PUBLIC -DPOLYSOLVE_WITH_TRILINOS)
+    # include(trilinos)  
+    if(TARGET Trilinos::Trilinos)
+        target_link_libraries(polysolve PUBLIC Trilinos::Trilinos)
+        target_compile_definitions(polysolve PUBLIC -DPOLYSOLVE_WITH_TRILINOS)
+    else()
+        message(WARNING "Trilinos not found, solver will not be available.")
+    endif()
+    endif()
 
 # cuSolver solvers
 if(POLYSOLVE_WITH_CUSOLVER)
